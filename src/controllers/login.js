@@ -1,4 +1,4 @@
-import db from "./database.js";
+import db from "../models/database.js";
 
 const submitbtn = document.getElementById('submitbtn');
 const mailinput = document.getElementById('mail');
@@ -12,7 +12,7 @@ function handlesubmit() {
     setTimeout(() => {
         if (user) {
             localStorage.setItem('currentUser',JSON.stringify(user));
-            document.location = './dashboard.html';
+            document.location = '../view/dashboard.html';
         } else {
             alert('bad credentials !!!');
         }

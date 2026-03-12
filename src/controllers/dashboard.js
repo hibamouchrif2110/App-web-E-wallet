@@ -1,12 +1,14 @@
-import db from "./database.js";
+import db from "../models/database.js";
 
 let user = localStorage.getItem('currentUser');
 
 if (!user) {
-    document.location = './login.html';
+    document.location = '../view/login.html';
 }
 
 user = JSON.parse(user);
+
+console.log(user.name);
 
 const users = db.allUsers;
 
