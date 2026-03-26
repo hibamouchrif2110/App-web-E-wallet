@@ -69,6 +69,7 @@ function renderDashboard() {
       <div>${transaction.date}</div>
       <div>${transaction.amount} MAD</div>
       <div>${transaction.type}</div>
+      <div>${transaction.status ==='failed'? 'failed':'succes'}</div>
     `;
     transactionsList.appendChild(transactionItem);
   });
@@ -181,13 +182,13 @@ function addtransactions(expediteur, destinataire, amount) {
 
 function transfer(expediteur, numcompte, amount) {//num du dest
 
-  checkUser(numcompte)
-    .then((destinataire) => {
+  checkUser(numcompte) //p0
+    .then((destinataire) => {//p1
       console.log("Étape 1  : Destinataire trouvé -", destinataire.name);
-      return checkSolde(expediteur, amount)
-        .then((soldeMessage) => {
+      return checkSolde(expediteur, amount) // p2
+        .then((soldeMessage) => { //p3
           console.log("Étape 2  :", soldeMessage);
-          return updateSolde(expediteur, destinataire, amount);
+          return updateSolde(expediteur, destinataire, amount); //p4
         })
         .then((updateMessage) => {
           console.log("Étape 3  :", updateMessage);
@@ -215,4 +216,142 @@ function handleTransfer(e) {
   const amount = Number(document.getElementById("amount").value);
 
   transfer(user, beneficiaryAccount, amount);
+}
+// RECHARGEMENT//
+// 
+const openTopupButton = document.getElementById("quickTopup");
+const topupModal = document.getElementById("topupPopup");
+const closeModalButton = document.getElementById("closeTopupBtn");
+const cancelTopupButton = document.getElementById("cancelTopupBtn");
+const confirmTopupButton = document.getElementById("submitTopupBtn");
+const cardSelect = document.getElementById("topupCard");//select 
+
+//events
+openTopupButton.addEventListener("click", showTopupModal);
+closeModalButton.addEventListener("click", hideTopupModal);
+cancelTopupButton.addEventListener("click", hideTopupModal);
+function showTopupModal(){
+  topupModal.classList.add("active");
+  document.body.classList.add("popu-open");
+
+}
+function hideTopupModal(){
+  topupModal.classList.remove("active");
+  document.body.classList.remove("popup-open");
+
+}
+
+function loadUserCards(){
+  user.wallet.cards.forEach((card)=>{
+    const option= document.createElement("option");
+    option.value=card.numcards;
+    option.textContent=`${card.type}****${card.numcards}`;
+    cardSelect.appendChild(option);
+  });
+}
+loadUserCards();
+// promesse
+function validateAmount(amount){
+  return new Promise((resolve,reject) =>{
+    setTimeout(() =>{
+      if(!amount || amount<=0){
+        reject("montant invalide");
+      }else if(amount<10 || amount> 5000){
+        reject("montant doit etre entre 10 et 5000 MAD");
+
+      }else{
+        resolve();
+      }
+    },500);
+  });
+  
+}
+function validateCard(user,cardNumber){
+  return new Promise((resolve,reject)=>{
+    setTimeout(()=>{
+      const card=user.wallet.cards.find(c=>c.numcards===cardNumber);
+      if(!card){
+        reject("card introuvable");
+
+      }else{
+        const today=new Date();
+        const expiryDate= new Date(card.expiry);
+        if(expiryDate<today){
+          reject("carte expiree");
+
+        }else{
+          resolve(card);
+        }
+      }
+    },500);
+  });
+}
+function updateBalances(user, card, amount){
+  return new Promise((resolve,reject)=>{
+    setTimeout(()=>{
+      if(card.balance<amount){
+        reject("solde insuffisant sur la carte");
+      }else {
+        card.balance-=amount;
+        user.wallet.balance+=amount;
+        resolve();
+      }
+      
+    },500);
+  });
+}
+function addTopupTransaction(user,amount,card,status){
+  return new Promise((resolve) =>{
+    setTimeout(()=>{
+      const transaction= {
+        id: Date.now(),
+        type: "recharge",
+        amount: amount,
+        date: new Date().toLocaleString(),
+        from: card.numcards,
+        status:status
+
+      };
+      user.wallet.transactions.push(transaction);
+      resolve();
+
+    },500);
+  });
+}
+function topup(user,cardNumber,amount) {
+  validateAmount(amount)
+  .then(()=> validateCard(user,cardNumber))
+  .then((card)=>{return updateBalances(user,card,amount)
+    .then(()=>card);
+
+  }).then((card)=>{
+    return addTopupTransaction(user,amount,card,"success");
+
+  })
+  .then(()=>{
+    alert("rechargement reussi");
+    renderDashboard();
+    hideTopupModal();
+
+  })
+  .catch((error)=>{
+    console.log(error);
+    const card=user.wallet.cards.find(c=>c.numcards===cardNumber);
+    if(card){
+      addTopupTransaction(user,amount,card,"failed")
+       .then(() => {
+        renderDashboard(); 
+      });
+    }
+    alert("erreur"+error);
+  });
+}
+confirmTopupButton.addEventListener("click", handleTopup);
+function handleTopup(e) {
+  e.preventDefault();
+
+  const selectedCardNumber = cardSelect.value;
+  const enteredAmount = Number(document.getElementById("topupAmount").value);
+
+  topup(user, selectedCardNumber, enteredAmount);
 }
