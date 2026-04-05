@@ -180,7 +180,7 @@ function addtransactions(expediteur, destinataire, amount) {
 }
 
 
-function transfer(expediteur, numcompte, amount) {//num du dest
+/*function transfer(expediteur, numcompte, amount) {//num du dest
 
   checkUser(numcompte) //p0
     .then((destinataire) => {//p1
@@ -206,9 +206,31 @@ function transfer(expediteur, numcompte, amount) {//num du dest
       console.log(" Erreur :", erreur);
       alert("Erreur : " + erreur);
     });
+}*/
+async function transfer(expediteur, numcompte, amount) {
+  try {
+    const destinataire = await checkUser(numcompte);
+    console.log("Étape 1  : Destinataire trouvé -", destinataire.name);
+
+    const soldeMessage = await checkSolde(expediteur, amount);
+    console.log("Étape 2  :", soldeMessage);
+
+    const updateMessage = await updateSolde(expediteur, destinataire, amount);
+    console.log("Étape 3  :", updateMessage);
+
+    const addTransactionMessage = await addtransactions(expediteur, destinataire, amount);
+    console.log("Étape 4  :", addTransactionMessage);
+
+    console.log(" Virement effectué avec succès !");
+    renderDashboard();
+    closeTransfer();
+  } catch (erreur) {
+    console.log(" Erreur :", erreur);
+    alert("Erreur : " + erreur);
+  }
 }
 
-function handleTransfer(e) {
+/*function handleTransfer(e) {
   e.preventDefault();
   const beneficiaryId = document.getElementById("beneficiary").value;
   const beneficiaryAccount = findbeneficiarieByid(user.id, beneficiaryId).account;
@@ -216,6 +238,15 @@ function handleTransfer(e) {
   const amount = Number(document.getElementById("amount").value);
 
   transfer(user, beneficiaryAccount, amount);
+}*/
+async function handleTransfer(e) {
+  e.preventDefault();
+  const beneficiaryId = document.getElementById("beneficiary").value;
+  const beneficiaryAccount = findbeneficiarieByid(user.id, beneficiaryId).account;
+  const sourceCard = document.getElementById("sourceCard").value;
+  const amount = Number(document.getElementById("amount").value);
+
+  await transfer(user, beneficiaryAccount, amount);
 }
 // RECHARGEMENT//
 // 
@@ -318,7 +349,7 @@ function addTopupTransaction(user,amount,card,status){
     },500);
   });
 }
-function topup(user,cardNumber,amount) {
+/*function topup(user,cardNumber,amount) {
   validateAmount(amount)
   .then(()=> validateCard(user,cardNumber))
   .then((card)=>{return updateBalances(user,card,amount)
@@ -346,12 +377,43 @@ function topup(user,cardNumber,amount) {
     alert("erreur"+error);
   });
 }
-confirmTopupButton.addEventListener("click", handleTopup);
-function handleTopup(e) {
+confirmTopupButton.addEventListener("click", handleTopup);*/
+async function topup(user, cardNumber, amount) {
+  let card = null;
+  try {
+    await validateAmount(amount);
+
+    card = await validateCard(user, cardNumber);
+
+    await updateBalances(user, card, amount);
+
+    await addTopupTransaction(user, amount, card, "success");
+
+    alert("rechargement reussi");
+    renderDashboard();
+    hideTopupModal();
+  } catch (error) {
+    console.log(error);
+    if (card) {
+      await addTopupTransaction(user, amount, card, "failed");
+      renderDashboard();
+    }
+    alert("erreur" + error);
+  }
+}
+/*function handleTopup(e) {
   e.preventDefault();
 
   const selectedCardNumber = cardSelect.value;
   const enteredAmount = Number(document.getElementById("topupAmount").value);
 
   topup(user, selectedCardNumber, enteredAmount);
+}*/
+async function handleTopup(e) {
+  e.preventDefault();
+
+  const selectedCardNumber = cardSelect.value;
+  const enteredAmount = Number(document.getElementById("topupAmount").value);
+
+  await topup(user, selectedCardNumber, enteredAmount);
 }
